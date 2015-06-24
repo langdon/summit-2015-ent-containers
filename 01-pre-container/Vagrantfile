@@ -1,0 +1,39 @@
+Vagrant.configure(2) do |config|
+  config.vm.define :summit_rhel_native do | host |
+    host.vm.box = "rhel-server-7"
+    host.vm.hostname = "summit-rhel-native"
+
+    host.vm.synced_folder ".", "/vagrant", disabled: true
+    host.vm.synced_folder ".", "/home/vagrant/sync", type: "rsync",
+                          rsync__exclude: [ ".git/", ".#*", "*~" ]
+    host.vm.synced_folder "../shared-files", "/home/vagrant/shared", type: "rsync",
+                          rsync__exclude: [ ".git/", ".#*", "*~" ]
+
+    if Vagrant.has_plugin?('vagrant-registration')
+      if ENV['SUB_USERNAME'] then host.registration.username = ENV['SUB_USERNAME'] end
+      if ENV['SUB_PASSWORD'] then host.registration.password = ENV['SUB_PASSWORD'] end
+    end                          
+    
+    host.vm.provision 'shell', inline: "cat /home/vagrant/shared/piece.bashrc >> /home/vagrant/.bashrc"
+
+    host.vm.provision 'shell', inline: "sudo subscription-manager repos --enable=\"rhel-server-rhscl-7-rpms\""
+    host.vm.provision 'shell', inline: "sudo yum install -y rh-php56 rh-mariadb100 nginx16"
+    host.vm.provision 'shell', inline: "sudo yum install -y gd rh-php56-php rh-php56-php-gd rh-php56-php-mbstring"
+    host.vm.provision 'shell', inline: "sudo yum install -y rh-php56-php-mysqlnd rh-php56-php-fpm"
+
+    host.vm.provision 'shell', inline: "sudo systemctl enable rh-php56-php-fpm nginx16-nginx rh-mariadb100-mariadb" 
+    host.vm.provision 'shell', inline: "sudo mkdir -p /var/www/html && chown -R nginx:nginx /var/www/html"
+    host.vm.provision 'shell', inline: "sudo cp -f /home/vagrant/shared/nginx.conf /opt/rh/nginx16/root/etc/nginx/"
+    host.vm.provision 'shell', inline: "sudo systemctl start rh-php56-php-fpm  nginx16-nginx rh-mariadb100-mariadb" 
+
+    host.vm.provision 'shell', inline: "sudo cp -f /home/vagrant/shared/drupal-7.38.tar.gz /var/www/ && cd /var/www/ && tar -xf drupal*gz && sudo mv /var/www/drupal* /var/www/html"
+
+
+    
+
+    
+    #set root password
+    #host.vm.provision 'shell', inline: "echo -e \"redhat\\nredhat\" | (passwd --stdin root)"
+  end
+
+end
